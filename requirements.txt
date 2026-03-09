@@ -1,0 +1,5 @@
+# SDC Testing Executor Requirements
+# OCP output format support
+ocptv>=1.0.0
+# YAML parsing for OpenDCDiag output
+pyyaml>=6.0
