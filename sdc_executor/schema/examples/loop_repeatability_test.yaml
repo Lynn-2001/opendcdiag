@@ -1,0 +1,73 @@
+# Loop Repeatability Test Recipe Example
+# This recipe runs repeated iterations of a memory test to measure repeatability
+# and detect intermittent failures
+
+recipe_id: "memory_repeatability_loop_v1"
+version: "1.0" 
+description: "Memory pattern test with loop execution for repeatability analysis and intermittent failure detection"
+
+tool:
+  name: "opendcdiag"
+  version: "2.1.5"
+  binary_path: "/opt/diagnostics/opendcdiag"
+  args:
+    - "--test"
+    - "memory_patterns"
+    - "--pattern-types"
+    - "walking_ones,walking_zeros,checkerboard"
+    - "--single-iteration-duration"
+    - "120"
+    - "--verbose-logging"
+  build_info:
+    compiler: "clang-15"
+    linking: "static"
+
+software_env:
+  os_version: "Red Hat Enterprise Linux 9.2"
+  run_as_root: true
+  dynamic_libs:
+    - "libnuma.so.1"
+  sysctl_overrides:
+    "vm.swappiness": "1"
+    "kernel.numa_balancing": "0"
+  environment: "bare_metal"
+
+hardware_env:
+  target_device:
+    type: "memory"
+    model: "DDR5-4800 ECC"
+    access_mode: "bare_metal"
+  ancillary_devices:
+    - type: "cpu"
+      min_capacity: "64cores"
+  node_identifiers:
+    - "memory-node-0"
+    - "memory-node-1"
+
+desired_runtime:
+  duration_seconds: 120
+  rationale: "2 minutes per iteration sufficient for pattern-based memory validation"
+
+loop:
+  enabled: true
+  count: 50
+  stop_on_first_failure: false
+  cooldown_seconds: 30
+
+limits:
+  timeout_seconds: 7200  # 2 hours total (50 iterations * 120s + cooldown)
+  max_cpu_percent: 80.0
+  max_memory_mb: 65536
+  cpu_pin: [8, 9, 10, 11, 12, 13, 14, 15]
+  priority: "normal"
+
+execution:
+  mode: "offline"
+  order: 5
+
+reporting:
+  output_format: "ocp_json"
+  output_path: null  # Output to stdout for real-time monitoring
+  include_metrics:
+    - "ttf"
+    - "repeatability"
