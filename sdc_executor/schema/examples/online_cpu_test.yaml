@@ -1,0 +1,60 @@
+# Online CPU Test Recipe Example
+# This recipe runs a lightweight CPU stress test alongside production workloads
+# with zero interference guarantee
+
+recipe_id: "online_cpu_stress_v1"
+version: "1.0"
+description: "Lightweight CPU stress test designed for online execution with minimal footprint"
+
+tool:
+  name: "opendcdiag" 
+  version: "2.1.0"
+  binary_path: "/opt/opendcdiag/bin/opendcdiag"
+  args:
+    - "--test"
+    - "cpu_stress"
+    - "--online-mode"
+    - "--low-intensity"
+    - "--duration"
+    - "300"
+  build_info:
+    compiler: "gcc-12"
+    linking: "static"
+
+software_env:
+  os_version: "Ubuntu 22.04"
+  run_as_root: false
+  dynamic_libs:
+    - "libssl.so.3"
+    - "libcrypto.so.3"
+  environment: "bare_metal"
+
+hardware_env:
+  target_device:
+    type: "cpu"
+    model: "Intel Xeon Sapphire Rapids"
+    access_mode: "any"
+    firmware_version: "2.4.0"
+  ancillary_devices:
+    - type: "ram"
+      min_capacity: "32GB"
+
+desired_runtime:
+  duration_seconds: 300
+  rationale: "5 minutes sufficient for basic stress pattern detection without impact"
+
+limits:
+  timeout_seconds: 400
+  max_cpu_percent: 15.0
+  max_memory_mb: 512
+  priority: "low"
+
+execution:
+  mode: "online"
+  order: 10
+
+reporting:
+  output_format: "ocp_json"
+  output_path: "/tmp/online_cpu_test_results.json" 
+  include_metrics:
+    - "footprint_tax"

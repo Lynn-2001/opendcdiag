@@ -1,0 +1,302 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SDC Testing Executor Recipe Schema",
+  "description": "Schema for Input Test Recipe based on OCP SDC Workstream specification with SDC executor-specific extensions",
+  "type": "object",
+  "required": [
+    "recipe_id",
+    "version",
+    "tool",
+    "software_env",
+    "hardware_env",
+    "desired_runtime",
+    "execution",
+    "reporting"
+  ],
+  "properties": {
+    "recipe_id": {
+      "type": "string",
+      "description": "Unique identifier for this recipe"
+    },
+    "version": {
+      "type": "string",
+      "description": "Recipe schema version e.g. '1.0'",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of what this recipe tests"
+    },
+    "tool": {
+      "type": "object",
+      "description": "Tool configuration indicating which tool or tool suite to use",
+      "required": ["name", "binary_path", "args"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Tool identifier e.g. 'opendcdiag', 'silifuzz', 'dcgm'"
+        },
+        "version": {
+          "type": "string",
+          "description": "Specific version number e.g. '2.1.0'"
+        },
+        "binary_path": {
+          "type": "string",
+          "description": "Path to executable or container image"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "CLI arguments to pass to the tool"
+        },
+        "build_info": {
+          "type": "object",
+          "description": "Build details for reproducibility",
+          "properties": {
+            "compiler": {
+              "type": "string",
+              "description": "Compiler used e.g. 'gcc-12'"
+            },
+            "linking": {
+              "type": "string",
+              "enum": ["static", "dynamic"],
+              "description": "Linking type"
+            },
+            "container_image": {
+              "type": "string",
+              "description": "Docker image URI if applicable"
+            }
+          }
+        }
+      }
+    },
+    "software_env": {
+      "type": "object",
+      "description": "Software environment selection indicating what other software must be present",
+      "required": ["os_version", "run_as_root", "environment"],
+      "properties": {
+        "os_version": {
+          "type": "string",
+          "description": "Operating system version e.g. 'Ubuntu 22.04'"
+        },
+        "run_as_root": {
+          "type": "boolean",
+          "description": "Whether root/admin privileges are needed"
+        },
+        "dynamic_libs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required shared libraries"
+        },
+        "sysctl_overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "/proc/sys or /sys changes needed e.g. {'kernel.perf_event_paranoid': '0'}"
+        },
+        "environment": {
+          "type": "string",
+          "enum": ["container", "vm", "bare_metal"],
+          "description": "Execution environment"
+        },
+        "dockerfile_path": {
+          "type": "string",
+          "description": "Path to Dockerfile for reproducibility"
+        }
+      }
+    },
+    "hardware_env": {
+      "type": "object",
+      "description": "Hardware environment selection indicating target hardware and ancillary requirements",
+      "required": ["target_device"],
+      "properties": {
+        "target_device": {
+          "type": "object",
+          "required": ["type", "access_mode"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["cpu", "gpu", "npu", "memory", "disk"],
+              "description": "Target device type"
+            },
+            "model": {
+              "type": "string",
+              "description": "Device model e.g. 'Intel Xeon Sapphire Rapids'"
+            },
+            "access_mode": {
+              "type": "string",
+              "enum": ["bare_metal", "virtualized", "any"],
+              "description": "Device access mode"
+            },
+            "firmware_version": {
+              "type": "string",
+              "description": "Required firmware version"
+            }
+          }
+        },
+        "ancillary_devices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "Ancillary device type e.g. 'accelerator', 'ram'"
+              },
+              "min_capacity": {
+                "type": "string",
+                "description": "Minimum capacity e.g. '256GB' for RAM"
+              }
+            }
+          },
+          "description": "Other hardware that must be present"
+        },
+        "node_identifiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Node network IDs or serial numbers"
+        }
+      }
+    },
+    "desired_runtime": {
+      "type": "object",
+      "description": "Desired runtime to ensure sufficient data collection",
+      "required": ["duration_seconds"],
+      "properties": {
+        "duration_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Target test duration in seconds"
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why this duration was chosen"
+        }
+      }
+    },
+    "loop": {
+      "type": "object",
+      "description": "Loop configuration for repeated execution and reliability measurement",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether loop mode is enabled"
+        },
+        "count": {
+          "type": "integer",
+          "description": "Number of iterations. -1 means infinite"
+        },
+        "stop_on_first_failure": {
+          "type": "boolean",
+          "description": "If true, abort all remaining iterations when any iteration fails"
+        },
+        "cooldown_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Wait time between iterations"
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "required": ["count", "stop_on_first_failure"]
+      }
+    },
+    "limits": {
+      "type": "object",
+      "description": "Timeout and resource limits",
+      "properties": {
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum execution time"
+        },
+        "max_cpu_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Maximum CPU usage percentage"
+        },
+        "max_memory_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum memory usage in MB"
+        },
+        "cpu_pin": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "CPU cores to pin to"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "normal", "high"],
+          "description": "Process priority"
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "description": "Execution mode and order control",
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["online", "offline"],
+          "description": "Execution mode: online runs alongside production workloads with zero interference guarantee, offline runs on idle system with full resource access"
+        },
+        "order": {
+          "type": "integer",
+          "description": "Execution priority when multiple recipes run together. Lower number runs first. Same order values run in parallel"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of recipe_ids that must complete successfully before this recipe starts"
+        }
+      }
+    },
+    "reporting": {
+      "type": "object",
+      "description": "Reporting configuration",
+      "required": ["output_format", "include_metrics"],
+      "properties": {
+        "output_format": {
+          "type": "string",
+          "enum": ["ocp_json", "jsonl"],
+          "description": "Output format"
+        },
+        "output_path": {
+          "type": ["string", "null"],
+          "description": "File path for output. If null, output to stdout"
+        },
+        "include_metrics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["ttf", "repeatability", "footprint_tax"]
+          },
+          "description": "Metrics to collect: ttf=Time To Failure, repeatability=Repeatability rate across loop iterations, footprint_tax=Production workload performance impact"
+        }
+      }
+    }
+  }
+}

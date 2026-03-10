@@ -1,0 +1,78 @@
+# Offline Stress Test Recipe Example
+# This recipe runs an intensive multi-component stress test on idle system
+# with full resource access
+
+recipe_id: "offline_comprehensive_stress_v2"
+version: "1.0"
+description: "Comprehensive multi-component stress test for offline execution with full resource utilization"
+
+tool:
+  name: "opendcdiag"
+  version: "2.2.0-beta"
+  binary_path: "/usr/local/bin/opendcdiag"
+  args:
+    - "--test"
+    - "comprehensive_stress"
+    - "--components"
+    - "cpu,memory,disk,network"
+    - "--intensity"
+    - "maximum"
+    - "--duration"
+    - "1800"
+    - "--enable-thermal-monitoring"
+  build_info:
+    compiler: "gcc-13"
+    linking: "dynamic"
+    container_image: "registry.example.com/opendcdiag:v2.2.0-beta"
+
+software_env:
+  os_version: "Ubuntu 24.04"
+  run_as_root: true
+  dynamic_libs:
+    - "libnuma.so.1"
+    - "libpthread.so.0" 
+    - "libssl.so.3"
+  sysctl_overrides:
+    "kernel.perf_event_paranoid": "0"
+    "vm.drop_caches": "3"
+  environment: "bare_metal"
+  dockerfile_path: "/opt/containers/opendcdiag.dockerfile"
+
+hardware_env:
+  target_device:
+    type: "cpu"
+    model: "AMD EPYC Genoa"
+    access_mode: "bare_metal"
+    firmware_version: "1.2.3"
+  ancillary_devices:
+    - type: "ram"
+      min_capacity: "128GB"
+    - type: "accelerator"
+      min_capacity: "80GB"
+  node_identifiers:
+    - "node-001"
+    - "switch-fabric-A"
+
+desired_runtime:
+  duration_seconds: 1800
+  rationale: "30 minutes required for thermal cycling and comprehensive component validation"
+
+limits:
+  timeout_seconds: 2100
+  max_cpu_percent: 95.0
+  max_memory_mb: 131072
+  cpu_pin: [0, 1, 2, 3, 4, 5, 6, 7]
+  priority: "high"
+
+execution:
+  mode: "offline"
+  order: 1
+  depends_on:
+    - "system_health_check_v1"
+    - "baseline_metrics_collection_v1"
+
+reporting:
+  output_format: "ocp_json"
+  output_path: "/var/log/sdc/offline_stress_results.json"
+  include_metrics:
+    - "ttf"
